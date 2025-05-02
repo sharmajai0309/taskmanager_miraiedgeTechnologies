@@ -1,37 +1,44 @@
 package com.MiraiEdge.Taskmanager.RestController;
 
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.MiraiEdge.Taskmanager.Services.AuthServices;
-import com.MiraiEdge.Taskmanager.dto.AuthRequest;
-import com.MiraiEdge.Taskmanager.dto.AuthResponse;
-
-import lombok.RequiredArgsConstructor;
+import com.MiraiEdge.Taskmanager.Model.User;
+import com.MiraiEdge.Taskmanager.jwtconfig.JwtUtil;
+import com.MiraiEdge.Taskmanager.repository.UserRepository;
 
 @RestController
 @RequestMapping("/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
+    @Autowired 
+    private UserRepository userRepository;
+    
+    @Autowired 
+    private PasswordEncoder passwordEncoder;
+    
+    @Autowired 
+    private JwtUtil jwtUtil;
 
-	@Autowired
-	private final AuthServices authService;
-	
-	@PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody AuthRequest request) {
-        authService.signup(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
+    @PostMapping("/signup")
+    public String signup(@RequestBody User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        userRepository.save(user);
+        return "User registered";
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
-        String token = authService.login(request);
-        return ResponseEntity.ok(new AuthResponse(token));
+    public String login(@RequestBody User user) {
+        Optional<User> dbUser = userRepository.findByUsername(user.getUsername());
+        if (dbUser.isPresent() && passwordEncoder.matches(user.getPassword(), dbUser.get().getPassword())) {
+            return jwtUtil.generateToken(user.getUsername());
+        }
+        return "Invalid credentials";
     }
 }
