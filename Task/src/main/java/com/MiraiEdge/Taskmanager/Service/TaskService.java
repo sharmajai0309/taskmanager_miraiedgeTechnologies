@@ -1,11 +1,15 @@
 package com.MiraiEdge.Taskmanager.Service;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.MiraiEdge.Taskmanager.Repository.TaskRepository;
 import com.MiraiEdge.Taskmanager.model.Task;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -71,4 +75,34 @@ public interface TaskService {
 	     *         - "overdueCount": Count of tasks with due dates before today
 	     */
 	    Map<String, Object> getTaskSummary();
+	    
+	    
+	    
+	    /**
+	     * Get paginated tasks by status
+	     * @param status Task status filter
+	     * @param pageable Pagination and sorting parameters
+	     * @return Page of tasks
+	     */
+	    public Page<Task> getTasksByStatus(Task.Status status, Pageable pageable);
+	    
+	    /**
+	     * Get overdue tasks (due before specified date)
+	     * @param date Cutoff date
+	     * @param pageable Pagination and sorting parameters
+	     * @return Page of overdue tasks
+	     */
+	    public Page<Task> getOverdueTasks(LocalDate date, Pageable pageable);
 }
+
+
+
+
+
+
+
+
+
+
+
+

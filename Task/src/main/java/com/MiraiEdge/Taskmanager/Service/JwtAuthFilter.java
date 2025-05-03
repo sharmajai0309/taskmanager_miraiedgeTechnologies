@@ -14,58 +14,60 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
-    
+
+    private static final String AUTH_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response, 
-            FilterChain filterChain) throws ServletException, IOException {
-    	
-        
-    	try{
-// 1. Extract Authorization header
+    protected void doFilterInternal(HttpServletRequest request,
+                                   HttpServletResponse response,
+                                   FilterChain filterChain) throws ServletException, IOException {
 
-    	    String authHeader = request.getHeader("Authorization");
-    	    
-// Skip filter if no Bearer token present
-    	    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-    	        filterChain.doFilter(request, response);
-    	        return;
-    	    }
-    	    
-    	    
-// 2. Extract and validate JWT
-    	    String jwt = authHeader.substring(7);
-    	    String username = jwtUtil.extractUsername(jwt);
-    	    
-    	    
-// 3. Validate token and set authentication
-    	    if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-    	        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-    	        if (jwtUtil.validateToken(jwt)) {
-    	        	
-    	        	
- // Create authentication token
-    	            var authToken = new UsernamePasswordAuthenticationToken(
-    	                userDetails, null, userDetails.getAuthorities());
-    	            SecurityContextHolder.getContext().setAuthentication(authToken);
-    	        }
-    	    }
-    	    filterChain.doFilter(request, response);
-    	    System.out.println("Raw header: " + authHeader);
-            System.out.println("Extracted token: " + jwt); 
-            System.out.println("Extracted username: " + username);
-    	}
-           
-       
+        try {
+            // 1. Extract and validate Authorization header
+            final String authHeader = request.getHeader(AUTH_HEADER);
+            
+            if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // 2. Extract and validate JWT
+            final String jwt = authHeader.substring(BEARER_PREFIX.length());
+            final String username = jwtUtil.extractUsername(jwt);
+
+            // 3. Validate token and set authentication
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                
+                if (jwtUtil.validateToken(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.debug("Authenticated user: {}", username);
+                }
+            }
+        } catch (Exception ex) {
+            log.error("JWT authentication failed: {}", ex.getMessage());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid authentication token");
+            return;
+        }
+
+        // 4. Continue filter chain
         filterChain.doFilter(request, response);
     }
 }

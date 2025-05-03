@@ -9,6 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,13 +93,11 @@ public class TaskServiceImpl implements TaskService {
             @CacheEvict(value = "taskSummary", allEntries = true)
         })
     public void deleteTask(String id) {
-        if (!taskRepository.existsById(id)) {
-            throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND, 
-                "Task with ID " + id + " not found"
-            );
-        }
-        taskRepository.deleteById(id);
+    	try {
+    	    taskRepository.deleteById(id);
+    	} catch (EmptyResultDataAccessException e) {
+    	    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found: " + id);
+    	}
     }
 
 //  ------------------------------------------------------------------------------------------
@@ -146,6 +147,9 @@ public class TaskServiceImpl implements TaskService {
   
 //    ------------------------------------------------------------------------------------------
     
+    
+    
+    
     /**
      * Finds a task by ID
      * @param id ID of the task to find
@@ -162,4 +166,51 @@ public class TaskServiceImpl implements TaskService {
                 "Task with ID " + id + " not found"
             ));
     }
+
+    
+//  ------------------------------------------------------------------------------------------
+        
+    
+    
+    
+    
+    /**
+     * Get paginated tasks by status
+     * @param status Task status filter
+     * @param pageable Pagination and sorting parameters
+     * @return Page of tasks
+     */
+    @Override
+    @Cacheable(value = "tasksByStatus", key = "{#status, #pageable.pageNumber, #pageable.pageSize, #pageable.sort}")
+    public Page<Task> getTasksByStatus(Task.Status status, Pageable pageable) {
+        return taskRepository.findByStatus(status, pageable);
+    }
+
+    
+//  ------------------------------------------------------------------------------------------
+     
+    
+    
+    
+    /**
+     * Get overdue tasks (due before specified date)
+     * @param date Cutoff date
+     * @param pageable Pagination and sorting parameters
+     * @return Page of overdue tasks
+     */
+    @Override
+    @Cacheable(value = "overdueTasks", key = "{#date, #pageable.pageNumber, #pageable.pageSize}")
+    public Page<Task> getOverdueTasks(LocalDate date, Pageable pageable) {
+        return taskRepository.findByDueDateBefore(date, pageable);
+    }
 }
+
+
+
+
+
+
+
+
+
+

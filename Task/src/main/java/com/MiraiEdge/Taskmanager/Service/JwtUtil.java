@@ -1,19 +1,15 @@
 package com.MiraiEdge.Taskmanager.Service;
 
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.Date;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.function.Function;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
 
 
@@ -33,8 +29,8 @@ public class JwtUtil {
     }
     
     // Validate token (used in filter)
-    public boolean validateToken(String token) {
-        try {
+    public boolean validateToken(String token, UserDetails userDetails) {
+		try {
             Jwts.parserBuilder()
                 .setSigningKey(SECRET_KEY)
                 .build()
@@ -44,9 +40,9 @@ public class JwtUtil {
             System.out.println("Token validation failed: " + e.getMessage());
             return false;
         }
-    }
+	}
     
-    // Extract username (used in filter)
+    // Extract Username (used in filter)
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(SECRET_KEY)
@@ -55,4 +51,6 @@ public class JwtUtil {
                 .getBody()
                 .getSubject();
     }
+
+	
 }
